@@ -1,4 +1,4 @@
-# 🤖 SiteScout AI
+# 🤖  SiteScout AI
 
 **Open-source RAG (Retrieval-Augmented Generation) agent for websites.**
 
