@@ -5,10 +5,10 @@ DESCRIPTION = "🚀🤖 WebchatAI: Open-source RAG agent for websites"
 LONG_DESCRIPTION = open("README.md", encoding="utf-8").read()
 
 setup(
-    name="WebchatAI",
+    name="SiteScoutAI",
     version=version,
-    author="Gaurav Kumar",
-    author_email="gaurav,kumar9825@gmail.com",
+    author="Prakhar Singh",
+    author_email="justprakharsingh@gmail.com",
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     license="MIT",
