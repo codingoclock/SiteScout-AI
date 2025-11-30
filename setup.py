@@ -11,7 +11,7 @@ setup(
     author_email="justprakharsingh@gmail.com",
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
-    license="MIT",
+    # license="MIT",
     packages=find_packages(),
     install_requires=[],
     keywords=["python", "first package"],
