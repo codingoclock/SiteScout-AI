@@ -7,9 +7,9 @@ from crawl4ai import (
     AsyncWebCrawler,
 )
 
-from webchatai.agent.crawler.config import Crawl4AIConfig
-from webchatai.agent.crawler.sitemeta import SitemapCrawler, RobotsHandler
-from webchatai.agent.crawler import URLUtils
+from .config import Crawl4AIConfig
+from .sitemeta import SitemapCrawler, RobotsHandler
+from .url_manager import URLUtils
 
 
 class WebCrawler:

@@ -3,7 +3,7 @@ from collections import deque
 from typing import List, Set
 from xml.etree import ElementTree
 
-from webchatai.agent.crawler import URLUtils
+from .url_manager import URLUtils
 
 
 class SitemapCrawler:

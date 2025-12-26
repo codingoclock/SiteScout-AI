@@ -1,94 +1,218 @@
-# 🤖  SiteScout AI
+# 🔍 SiteScout AI — Website Intelligence with RAG
 
-**Open-source RAG (Retrieval-Augmented Generation) agent for websites.**
+**An open-source, agentic Retrieval-Augmented Generation (RAG) framework for websites, powered by LlamaIndex.**
 
-SiteScout AI is a modular, flexible Python framework designed to build intelligent chat agents using LlamaIndex. It features a plugin-style architecture allowing you to easily switch between different LLMs, storage backends, and indexing strategies.
+> Website Ingestion • Vector Search • Agentic Reasoning • Plug-and-Play LLMs
 
-<!-- [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) -->
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12-blue)](https://www.python.org/)
+[![LlamaIndex](https://img.shields.io/badge/LlamaIndex-RAG-purple)](https://github.com/run-llama/llama_index)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT-black)](https://platform.openai.com/)
+[![Ollama](https://img.shields.io/badge/Ollama-Local%20LLMs-orange)](https://ollama.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-VectorDB-green)](https://www.trychroma.com/)
+[![Redis](https://img.shields.io/badge/Redis-Cache-red)](https://redis.io/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-NoSQL-brightgreen)](https://www.mongodb.com/)
+[![Status](https://img.shields.io/badge/Status-Active--Development-brightblue)](#-quick-start)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+
+---
+
+## 🚨 Python Version Requirement (Strict)
+
+> **SiteScout AI runs ONLY on Python 3.10, 3.11, or 3.12**
+
+❌ Python ≤ 3.9 → **Not supported**  
+❌ Python ≥ 3.13 → **Not tested**
+
+This constraint exists due to:
+- LlamaIndex internal dependencies
+- Async event-loop compatibility
+- Vector store bindings
+
+👉 **If your Python version is outside this range, the project will not run.**
+
+---
+
+## 🚀 What Is SiteScout AI?
+
+SiteScout AI converts websites into **intelligent, queryable knowledge bases** using Retrieval-Augmented Generation (RAG).
+
+Instead of relying on static prompts, SiteScout:
+- Parses website content into structured documents
+- Generates vector embeddings
+- Stores them in pluggable vector stores
+- Uses **agent-based reasoning** to answer questions accurately
+
+Think:
+> *“ChatGPT, but grounded strictly in my website’s content.”*
+
+---
 
 ## ✨ Key Features
 
-* **Modular Architecture**: Built using Factory patterns for easy extensibility.
-* **Multiple LLM Support**:
-    * **OpenAI**: GPT-3.5/4 integration.
-    * **Open Source**: Integration with Ollama for local LLMs.
-* **Flexible Storage Backends**:
-    * **ChromaDB**: For vector storage.
-    * **Redis**: For document storage and caching.
-    * **MongoDB**: For scalable document and index storage.
-* **Indexing Strategies**: Supports Vector Store Indexing and Summary Indexing.
-* **Agentic Workflow**: Built on top of `llama-index` agents for reasoning capabilities.
+### 🧩 Modular Architecture
+- Factory-pattern design
+- Swap LLMs, storage backends, and indexes without refactoring
+- Clean separation of concerns
 
-## 📂 Project Structure
+### 🧠 Multiple LLM Providers
+- **OpenAI** (GPT-3.5 / GPT-4)
+- **Ollama** (local open-source models)
+- Easy extension for future providers
 
-```text
+### 🗄️ Flexible Storage Backends
+- **ChromaDB** — vector embeddings
+- **Redis** — document caching
+- **MongoDB** — scalable document & index storage
+
+### 📚 Indexing Strategies
+- Vector Store Index
+- Summary Index
+- Hybrid-ready design
+
+### 🤖 Agentic RAG Workflow
+- Built on `llama-index` agents
+- Multi-step reasoning
+- Context-aware, grounded responses
+
+---
+
+## ⚡ Quick Start
+
+### ✅ Prerequisites
+- **Python 3.10 / 3.11 / 3.12**
+- pip
+- (Optional) Ollama for local LLMs
+
+Verify Python version:
+```bash
+python --version
+```
+## 🧬 Installation
+### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/codingoclock/ProsZ-Future-Prosthetics.git
+cd ProsZ-Future-Prosthetics
+```
+### 2️⃣ Install Dependencies
+```bash 
+pip install -r requirements.txt
+```
+## ⚙️ Configuration
+#### SiteScout AI uses environment variables for LLMs and storage backends.
+### 🔑 OpenAI
+```bash
+export OPENAI_API_KEY=your_openai_api_key
+```
+## 🧠 Ollama (Local LLMs)
+``` bash
+ollama serve
+```
+#### Ensure a model is available:
+``` bashh
+ollama pull mistral
+```
+## 🗄️ Redis
+```bash
+export STORE_HOST=localhost
+export STORE_PORT=6379
+```
+## 🍃 MongoDB
+``` bash
+export URI=mongodb+srv://your_cluster_url
+```
+## ▶️ Running the RAG Agent
+``` bash
+from sitescoutai.agent.chat.manager import RAGManager
+from sitescoutai.config import Config
+
+config = Config()
+agent = RAGManager(config)
+
+response = agent.query("Hello, SiteScout!")
+print(response)
+```
+## 📁 Project Structure
+```
 sitescoutai/
 ├── agent/
 │   └── chat/
-│       ├── index.py       # Index creation and loading logic
-│       ├── llm.py         # LLM (OpenAI/Ollama) wrapper
+│       ├── index.py       # Index creation & loading
+│       ├── llm.py         # OpenAI / Ollama wrappers
 │       ├── logger.py      # Logging configuration
-│       ├── manager.py     # Main RAG Agent entry point
-│       ├── parsing.py     # Document parsing and node splitting
-│       └── storage.py     # Storage backends (Redis/Mongo/Chroma)
-├── requirements.txt
-└── setup.py
+│       ├── manager.py     # Main RAG agent entry point
+│       ├── parsing.py     # Document parsing & chunking
+│       └── storage.py     # Redis / MongoDB / Chroma backends
+│
+├── requirements.txt       # Python dependencies (3.10–3.12)
+├── setup.py
+└── README.md
+```
+## 🔄 RAG Workflow
+```bash
+Website Content
+      ↓
+Document Parsing & Chunking
+      ↓
+Vector Embeddings
+      ↓
+Vector Store (ChromaDB)
+      ↓
+Agent Reasoning (LlamaIndex)
+      ↓
+Final Answer
+```
+## 🎯 Use Cases
+- Website chatbots
+- Documentation assistants
+- Product knowledge bases
+- Customer support automation
+- Developer portals
+- Research & internal tools
+
+## 🐛 Troubleshooting
+### ❌ Project fails to start
+```bash
+python --version
+# Must be 3.10–3.12
+```
+### Reinstall dependencies:
+``` bash
+pip install -r requirements.txt --force-reinstall
 ```
 
-## ⚙️ Getting Started
-1. **Clone the repo**  
-   ```bash
-   git clone https://github.com/codingoclock/ProsZ-Future-Prosthetics.git
-   cd ProsZ-Future-Prosthetics
-   ```
-2. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-## ⚙️ Configuration
-
-SiteScout AI uses environment variables to configure LLM providers and storage backends.
-
----
-
-### 🔑 OpenAI API Key
- ```bash
-   OPENAI_API_KEY=your_openai_key
-   ```
-### 🧠 Ollama (Local LLMs)
- ```bash
-   ollama serve
-   ```
-### 🗄️ Storage Backends
-
----
-
-### 🔴 Redis
-```bash
-   STORE_HOST=localhost
-   STORE_PORT=6379
-   ```
-### 🍃 MongoDB
-```bash
-   URI=mongodb+srv://your_cluster_url
+### ❌ Ollama not responding
+``` bash
+ollama serve
 ```
-### ▶️ Running the Agent
-**Here’s an example of initializing the RAG agent:**
+### Check model availability:
 ```bash
-   from sitescoutai.agent.chat.manager import RAGManager
-   from sitescoutai.config import Config
-
-   config = Config()
-   agent = RAGManager(config)
-   response = agent.query("Hello, SiteScout!")
-   print(response)
+ollama list
 ```
+### ❌ Vector store issues
+- Ensure ChromaDB directory permissions
+- Restart Redis / MongoDB if enabled
+- Clear cached indexes after schema changes
 
-### ⭐ Remarks
- <!-- - **PRs, issues, and feature requests are always welcome!** -->
-- **If you like the project, consider leaving a ⭐ on GitHub!**
+## 📈 Roadmap
+- Website crawler integration
+- Streaming responses
+- Hybrid search (BM25 + vector)
+- Multi-agent collaboration
+- FastAPI API layer
+- Authentication & access control
+- Dashboard UI
+- Docker & Kubernetes support
+  
+## 📄 License
+- MIT License
 
+## 👥 Contributing
+### Contributions are welcome!
+- Fork the repository
+- Create a feature branch
+- Submit a pull request
+- Open issues for bugs or enhancements
 
-
-
+### If this project helped you, consider giving it a ⭐ on GitHub.
+ 

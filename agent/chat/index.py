@@ -3,16 +3,11 @@ import json
 from abc import ABC, abstractmethod
 from typing import Type, Dict
 
-from llama_index.core import (
-    SummaryIndex,
-    load_index_from_storage,
-    StorageContext,
-    VectorStoreIndex,
-)
-from llama_index.core.node_parser import SentenceSplitter
+# Deferred imports from llama_index are performed inside methods to avoid import-time failures.
+# (e.g., VectorStoreIndex, SummaryIndex, load_index_from_storage, StorageContext, SentenceSplitter)
 
-from webchatai.agent.chat import Config
-from webchatai.agent.chat.storage import StoreManager
+from .config import Config
+from .storage import StoreManager
 
 
 class IndexBase(ABC):
@@ -26,7 +21,7 @@ class IndexFactory:
 
     @classmethod
     def register(cls, store_type: str):
-        def inner_wrapper(wrapped_class: Type[Index]):
+        def inner_wrapper(wrapped_class: Type[IndexBase]):
             cls._registry[store_type.lower()] = wrapped_class
             return wrapped_class
 
@@ -74,17 +69,18 @@ class Index(IndexBase):
             return None
 
 
-@IndexFactory.register("chroma")
+@IndexFactory.register("chromadb")
 class ChromaIndex(Index):
     def __init__(self, storage_manager, document_handler, config):
         self.storage_manager = storage_manager
         self.document_handler = document_handler
         self.index = None
         self.config = config
-        self.parser = SentenceSplitter()
         self.storage_context = storage_manager.get_storage_context()
 
     def create_index(self, key_name: str):
+        from llama_index.core import VectorStoreIndex
+
         documents = self.document_handler.get_documents()
         index = VectorStoreIndex.from_documents(
             documents, storage_context=self.storage_context
@@ -96,10 +92,10 @@ class ChromaIndex(Index):
         self.store_index_id(file_path, data)
 
     def load_index(self, key_name):
+        from llama_index.core import VectorStoreIndex
+
         vector_store = self.storage_manager.get_vector_store()
-        print(vector_store, "vector_store")
         index = VectorStoreIndex.from_vector_store(vector_store)
-        print(index, "index")
 
         self.index = index
         return self.index
@@ -108,6 +104,9 @@ class ChromaIndex(Index):
 @IndexFactory.register("disk")
 class DiskIndex(Index):
     def __init__(self, storage_manager, document_handler, config):
+        from llama_index.core.node_parser import SentenceSplitter
+        from llama_index.core import StorageContext
+
         self.storage_manager = storage_manager
         self.document_handler = document_handler
         self.index = None
@@ -136,17 +135,9 @@ class DiskIndex(Index):
         return self.index
 
 
-@IndexFactory.register("redis")
-class RedisIndex(Index):
-    def __init__(self, storage_manager, document_handler, config):
-        self.storage_manager = storage_manager
-        self.document_handler = document_handler
-        self.index = None
-        self.config = config
-        self.parser = SentenceSplitter()
-        self.storage_context = self.storage_manager.get_storage_context()
-
     def create_index(self, key_name: str):
+        from llama_index.core import SummaryIndex, load_index_from_storage
+
         nodes = self.document_handler.get_nodes()
         summary_index = SummaryIndex(nodes, storage_context=self.storage_context)
         self.index = summary_index
@@ -156,6 +147,8 @@ class RedisIndex(Index):
         self.store_index_id(file_path, data)
 
     def load_index(self, key_name):
+        from llama_index.core import load_index_from_storage
+
         file_path = f"./storage/{key_name}/redis_index_id.json"
         index_id = self.load_index_id(file_path, key_name)
         if index_id:

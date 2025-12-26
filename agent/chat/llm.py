@@ -43,6 +43,8 @@ class OpenAIModel(LanguageModel):
         chunk_size: int = 1024,
         embedding_model: str = None,
     ):
+        if not api_key:
+            raise RuntimeError("OPENAI API key is required for model_type 'openai'")
         Settings.llm = OpenAI(api_key=api_key, temperature=temperature, model=model)
         Settings.chunk_size = chunk_size
         if embedding_model:

@@ -1,21 +1,22 @@
-from typing import List
+from typing import List, Optional
+import asyncio
 
-from llama_index.core import (
-    SimpleDirectoryReader,
-)
-from llama_index.agent.openai import OpenAIAgent
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.tools import QueryEngineTool
-from llama_index.core.tools.types import ToolMetadata
-from llama_index.core.agent import ReActAgent
+# Use relative imports to avoid depending on the package being installed
+from .config import Config
+from .storage import StoreManager
+from .index import IndexManager
+from .llm import LLMManager
+from .logger import Logger
 
-from webchatai.agent.chat import Config, StoreManager, Logger
-from webchatai.agent.chat.index import IndexManager
-from webchatai.agent.chat.llm import LLMManager
-
+# Note: llama_index imports are intentionally deferred to runtime to avoid
+# import-time failures on incompatible environments.
 
 class DocumentHandler:
     def __init__(self, input_files: List[str]):
+        # Delay importing heavy dependencies until actually needed
+        from llama_index.core import SimpleDirectoryReader
+        from llama_index.core.node_parser import SentenceSplitter
+
         self.reader = SimpleDirectoryReader(input_files=input_files)
         self.parser = SentenceSplitter()
 
@@ -30,26 +31,39 @@ class DocumentHandler:
 
 
 class AgentManager:
-    def __init__(self, index, api_key: str):
+    def __init__(self, index, model_type: str, api_key: Optional[str] = None):
+        # Defer imports to runtime for clearer errors
+        from llama_index.core.tools import QueryEngineTool
+        from llama_index.core.tools.types import ToolMetadata
+
         query_tool = QueryEngineTool(
             query_engine=index.as_query_engine(),
             metadata=ToolMetadata(
                 name="agent",
                 description=(
-                    "Answers questions related to the data."
-                    "Use a detailed plain text question as input to the tool."
+                    "Answers questions related to the data. Use a detailed plain text question as input to the tool."
                 ),
             ),
         )
         self.query_engine = index.as_query_engine()
-        self.agent = OpenAIAgent.from_tools(
-            [query_tool], api_key=api_key, verbose=False
-        )
-        # self.agent = ReActAgent.from_tools([query_tool], verbose=True)
+
+        if model_type and model_type.lower() == "openai":
+            from llama_index.agent.openai import OpenAIAgent
+
+            self.agent = OpenAIAgent.from_tools(
+                [query_tool], api_key=api_key, verbose=False
+            )
+        else:
+            # Use the generic ReActAgent which will use Settings.llm set by LLMManager
+            from llama_index.core.agent import ReActAgent
+
+            self.agent = ReActAgent.from_tools([query_tool], verbose=False)
 
     async def chat(self, prompt: str) -> str:
-        return self.agent.chat(prompt)
-        # return self.query_engine.query(prompt)
+        result = self.agent.chat(prompt)
+        if asyncio.iscoroutine(result):
+            return await result
+        return result
 
 
 class RAGAgent:
@@ -87,7 +101,8 @@ class RAGAgent:
         self.agent_manager = None
 
     def setup_agent(self, index):
-        self.agent_manager = AgentManager(index, self.config.OPENAI_API_KEY)
+        # Pass the configured model type and API key (if any)
+        self.agent_manager = AgentManager(index, self.config.MODEL_TYPE, api_key=self.config.OPENAI_API_KEY)
 
     def create_index(self, key_name: str):
         self.index_manager.create_index(key_name)

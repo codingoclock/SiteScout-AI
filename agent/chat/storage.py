@@ -1,20 +1,18 @@
 from abc import ABC, abstractmethod
 from typing import Type, Dict
 
-import chromadb
-from pymongo import MongoClient
-
 from llama_index.core import (
     StorageContext,
 )
 from llama_index.storage.docstore.redis import RedisDocumentStore
 from llama_index.storage.index_store.redis import RedisIndexStore
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from llama_index.storage.docstore.mongodb import MongoDocumentStore
-from llama_index.storage.index_store.mongodb import MongoIndexStore
 from llama_index.storage.kvstore.redis import RedisKVStore as RedisCache
 
-from webchatai.agent.chat.config import Config
+# Note: chromadb and pymongo imports are intentionally deferred to the
+# storage class initializers to avoid import-time failures when the
+# corresponding packages are not installed.
+
+from .config import Config
 
 
 class Store(ABC):
@@ -47,6 +45,13 @@ class StoreManager:
 @StorageFactory.register("chromadb")
 class ChromaStorage(Store):
     def __init__(self, collection_name: str, config: Config):
+        try:
+            import chromadb
+            from llama_index.vector_stores.chroma import ChromaVectorStore
+            from llama_index.core import StorageContext
+        except ModuleNotFoundError:
+            raise RuntimeError("Missing 'chromadb' package. Install 'chromadb' to use chromadb storage backend.")
+
         chroma_client = chromadb.EphemeralClient()
         self.chroma_collection = chroma_client.create_collection(collection_name)
         self.vector_store = ChromaVectorStore(chroma_collection=self.chroma_collection)
@@ -64,6 +69,8 @@ class ChromaStorage(Store):
 @StorageFactory.register("redis")
 class RedisStore(Store):
     def __init__(self, host: str, port: int, namespace: str, uri: str = None):
+        from llama_index.core import StorageContext
+
         self.docstore = RedisDocumentStore.from_host_and_port(
             host=host, port=port, namespace=namespace
         )
@@ -88,6 +95,11 @@ class RedisStore(Store):
 @StorageFactory.register("mongodb")
 class MongoDBStore(Store):
     def __init__(self, host: str, port: int, namespace: str, uri: str = None):
+
+        try:
+            from pymongo import MongoClient
+        except ModuleNotFoundError:
+            raise RuntimeError("Missing 'pymongo' package. Install 'pymongo' to use mongodb storage backend.")
 
         if uri:
             self.docstore = MongoDocumentStore.from_uri(
