@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 version = "0.0.1"
-DESCRIPTION = "🚀🤖 WebchatAI: Open-source RAG agent for websites"
+DESCRIPTION = "🚀🤖 SiteScoutAI: Open-source RAG agent for websites"
 LONG_DESCRIPTION = open("README.md", encoding="utf-8").read()
 
 setup(
