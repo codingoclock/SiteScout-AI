@@ -134,19 +134,36 @@ print(response)
 ```
 ## 📁 Project Structure
 ```
-sitescoutai/
-├── agent/
-│   └── chat/
-│       ├── index.py       # Index creation & loading
-│       ├── llm.py         # OpenAI / Ollama wrappers
-│       ├── logger.py      # Logging configuration
-│       ├── manager.py     # Main RAG agent entry point
-│       ├── parsing.py     # Document parsing & chunking
-│       └── storage.py     # Redis / MongoDB / Chroma backends
+SiteScoutAI/
+├── .venv/
 │
-├── requirements.txt       # Python dependencies (3.10–3.12)
+├── agent/
+│   ├── __init__.py
+│   │
+│   ├── chat/
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── index.py
+│   │   ├── llm.py
+│   │   ├── manager.py
+│   │   ├── parsing.py
+│   │   ├── storage.py
+│   │   └── logger.py
+│   │
+│   ├── crawler/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── sitemap.py
+│   │   └── url_manager.py
+│
+├── .env
+├── .env.example
+├── run_agent.py
+├── requirements.txt
 ├── setup.py
-└── README.md
+├── README.md
+├── .gitignore
+└── pyvenv.cfg
 ```
 ## 🔄 RAG Workflow
 ```bash
