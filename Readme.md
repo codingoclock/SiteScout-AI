@@ -19,7 +19,7 @@
 
 ## 🚨 Python Version Requirement (Strict)
 
-> **SiteScout AI runs ONLY on Python 3.10, 3.11, or 3.12**
+**SiteScout AI runs ONLY on Python 3.10, 3.11, or 3.12**
 
 ❌ Python ≤ 3.9 → **Not supported**  
 ❌ Python ≥ 3.13 → **Not tested**
