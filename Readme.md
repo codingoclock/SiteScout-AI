@@ -2,7 +2,7 @@
 
 **An open-source, agentic Retrieval-Augmented Generation (RAG) framework for websites, powered by LlamaIndex.**
 
-> Website Ingestion • Vector Search • Agentic Reasoning • Plug-and-Play LLMs
+ Website Ingestion • Vector Search • Agentic Reasoning • Plug-and-Play LLMs
 
 [![Python](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12-blue)](https://www.python.org/)
 [![LlamaIndex](https://img.shields.io/badge/LlamaIndex-RAG-purple)](https://github.com/run-llama/llama_index)
