@@ -1,16 +1,11 @@
 class OpenAIModel:
     def __init__(self, config):
         from llama_index.core import Settings
+        from llama_index.embeddings.openai import OpenAIEmbedding
         from llama_index.llms.openai import OpenAI
 
         Settings.llm = OpenAI(model=config.MODEL)
-
-        try:
-            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
-            Settings.embed_model = HuggingFaceEmbedding()
-        except ImportError:
-            pass
+        Settings.embed_model = OpenAIEmbedding()
 
 
 class OpenSourceModel:
