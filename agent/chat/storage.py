@@ -1,134 +1,89 @@
-from abc import ABC, abstractmethod
-from typing import Type, Dict
+class ChromaStorage:
+    def __init__(self, host, port, namespace, uri=None):
+        import chromadb
+        from llama_index.vector_stores.chroma import ChromaVectorStore
 
-from llama_index.core import (
-    StorageContext,
-)
-from llama_index.storage.docstore.redis import RedisDocumentStore
-from llama_index.storage.index_store.redis import RedisIndexStore
-from llama_index.storage.kvstore.redis import RedisKVStore as RedisCache
+        client = chromadb.EphemeralClient()
+        collection = client.get_or_create_collection(namespace)
+        self.vector_store = ChromaVectorStore(chroma_collection=collection)
 
-# Note: chromadb and pymongo imports are intentionally deferred to the
-# storage class initializers to avoid import-time failures when the
-# corresponding packages are not installed.
-
-from .config import Config
-
-
-class Store(ABC):
-    @abstractmethod
     def get_storage_context(self):
-        pass
+        from llama_index.core import StorageContext
+
+        return StorageContext.from_defaults(vector_store=self.vector_store)
+
+
+class DiskStorage:
+    def __init__(self, host, port, namespace, uri=None):
+        self.persist_dir = f"./storage/{namespace}"
+
+    def get_storage_context(self):
+        import os
+
+        from llama_index.core import StorageContext
+
+        if os.path.exists(self.persist_dir):
+            return StorageContext.from_defaults(persist_dir=self.persist_dir)
+        return StorageContext.from_defaults()
+
+
+class RedisStorage:
+    def __init__(self, host, port, namespace, uri=None):
+        from llama_index.storage.docstore.redis import RedisDocumentStore
+        from llama_index.storage.index_store.redis import RedisIndexStore
+
+        self.docstore = RedisDocumentStore.from_host_and_port(host, port, namespace=namespace)
+        self.index_store = RedisIndexStore.from_host_and_port(host, port, namespace=namespace)
+
+    def get_storage_context(self):
+        from llama_index.core import StorageContext
+
+        return StorageContext.from_defaults(docstore=self.docstore, index_store=self.index_store)
+
+
+class MongoStorage:
+    def __init__(self, host, port, namespace, uri=None):
+        from llama_index.storage.docstore.mongodb import MongoDocumentStore
+        from llama_index.storage.index_store.mongodb import MongoIndexStore
+
+        if uri:
+            self.docstore = MongoDocumentStore.from_uri(uri, namespace=namespace)
+            self.index_store = MongoIndexStore.from_uri(uri, namespace=namespace)
+        else:
+            self.docstore = MongoDocumentStore.from_host_and_port(host, port, namespace=namespace)
+            self.index_store = MongoIndexStore.from_host_and_port(host, port, namespace=namespace)
+
+    def get_storage_context(self):
+        from llama_index.core import StorageContext
+
+        return StorageContext.from_defaults(docstore=self.docstore, index_store=self.index_store)
 
 
 class StorageFactory:
-    _registry: Dict[str, Type[Store]] = {}
+    _registry = {
+        "chromadb": ChromaStorage,
+        "disk": DiskStorage,
+        "redis": RedisStorage,
+        "mongodb": MongoStorage,
+    }
 
     @classmethod
-    def register(cls, store_type: str):
-        def inner_wrapper(wrapped_class: Type[Store]):
-            cls._registry[store_type.lower()] = wrapped_class
-            return wrapped_class
-
-        return inner_wrapper
+    def create(cls, config, uri=None):
+        storage_cls = cls._registry.get(config.STORE_TYPE)
+        if storage_cls is None:
+            raise ValueError(f"Unknown STORE_TYPE: {config.STORE_TYPE!r}")
+        return storage_cls(
+            host=config.STORE_HOST,
+            port=config.STORE_PORT,
+            namespace=config.NAMESPACE,
+            uri=uri,
+        )
 
 
 class StoreManager:
-    @staticmethod
-    def create(store_type: str, **kwargs) -> Store:
-        model_cls = StorageFactory._registry.get(store_type.lower())
-        if not model_cls:
-            raise ValueError(f"Model type '{store_type}' not registered")
-        return model_cls(**kwargs)
+    def __init__(self, config, uri=None):
+        self.config = config
+        self.storage = StorageFactory.create(config, uri=uri)
 
-
-@StorageFactory.register("chromadb")
-class ChromaStorage(Store):
-    def __init__(self, collection_name: str, config: Config):
-        try:
-            import chromadb
-            from llama_index.vector_stores.chroma import ChromaVectorStore
-            from llama_index.core import StorageContext
-        except ModuleNotFoundError:
-            raise RuntimeError("Missing 'chromadb' package. Install 'chromadb' to use chromadb storage backend.")
-
-        chroma_client = chromadb.EphemeralClient()
-        self.chroma_collection = chroma_client.create_collection(collection_name)
-        self.vector_store = ChromaVectorStore(chroma_collection=self.chroma_collection)
-        self.storage_context = StorageContext.from_defaults(
-            vector_store=self.vector_store
-        )
-
-    def get_storage_context(self) -> StorageContext:
-        return self.storage_context
-
-    def get_vector_store(self):
-        return self.vector_store
-
-
-@StorageFactory.register("redis")
-class RedisStore(Store):
-    def __init__(self, host: str, port: int, namespace: str, uri: str = None):
-        from llama_index.core import StorageContext
-
-        self.docstore = RedisDocumentStore.from_host_and_port(
-            host=host, port=port, namespace=namespace
-        )
-        self.index_store = RedisIndexStore.from_host_and_port(
-            host=host, port=port, namespace=namespace
-        )
-        self.storage_context = StorageContext.from_defaults(
-            docstore=self.docstore, index_store=self.index_store
-        )
-        self.cache = RedisCache.from_host_and_port(host, port)
-
-    def get_storage_context(self) -> StorageContext:
-        return self.storage_context
-
-    def add_key(self, key, value):
-        self.cache.put(key, value)
-
-    def get_val(self, key):
-        return self.cache.get(key)
-
-
-@StorageFactory.register("mongodb")
-class MongoDBStore(Store):
-    def __init__(self, host: str, port: int, namespace: str, uri: str = None):
-
-        try:
-            from pymongo import MongoClient
-        except ModuleNotFoundError:
-            raise RuntimeError("Missing 'pymongo' package. Install 'pymongo' to use mongodb storage backend.")
-
-        if uri:
-            self.docstore = MongoDocumentStore.from_uri(
-                db_name="webchatai", uri=uri, namespace=namespace
-            )
-            self.index_store = MongoIndexStore.from_uri(
-                db_name="webchatai", uri=uri, namespace=namespace
-            )
-        else:
-            self.docstore = MongoDocumentStore.from_host_and_port(
-                db_name="webchatai", host=host, port=port, namespace=namespace
-            )
-            self.index_store = MongoIndexStore.from_host_and_port(
-                db_name="webchatai", host=host, port=port, namespace=namespace
-            )
-
-        self.storage_context = StorageContext.from_defaults(
-            docstore=self.docstore, index_store=self.index_store
-        )
-
-        if uri:
-            self.cache = MongoClient(uri)
-        else:
-            self.cache = MongoClient(host=host, port=port)
-
-        db_name = "webchatai"
-        collection = "webchatai"
-        self.db = self.cache[db_name]
-        self.collection = self.db[collection]
-
-    def get_storage_context(self) -> StorageContext:
-        return self.storage_context
+    def get_storage_context(self):
+        return self.storage.get_storage_context()

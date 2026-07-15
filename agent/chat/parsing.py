@@ -1,17 +1,16 @@
-from typing import List
+from llama_index.core import SimpleDirectoryReader
+from llama_index.core.node_parser import SentenceSplitter
 
 
 class DocumentHandler:
-    def __init__(self, input_files: List[str]):
-        from llama_index.core import SimpleDirectoryReader
-        from llama_index.core.node_parser import SentenceSplitter
-
-        self.reader = SimpleDirectoryReader(input_files=input_files)
-        self.parser = SentenceSplitter()
-
-    def get_nodes(self):
-        documents = self.reader.load_data()
-        return self.parser.get_nodes_from_documents(documents)
+    def __init__(self, config):
+        self.config = config
 
     def get_documents(self):
-        return self.reader.load_data()
+        reader = SimpleDirectoryReader(input_dir=self.config.INPUT_DIR)
+        return reader.load_data()
+
+    def get_nodes(self):
+        documents = self.get_documents()
+        splitter = SentenceSplitter(chunk_size=self.config.CHUNK_SIZE)
+        return splitter.get_nodes_from_documents(documents)
