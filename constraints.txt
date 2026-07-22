@@ -1,0 +1,14 @@
+# Pins for reproducible installs. Supplements requirements.txt's own ==
+# pins by constraining transitive resolution too (nothing pulls in a
+# different llama-index-core than what's listed here).
+#
+# NOTE: the blueprint originally specified llama-index-core<0.13,>=0.12.0.
+# That range does NOT match reality: every level (1-5) was built and
+# verified against llama-index-core==0.14.23, which is what's actually
+# installed. In particular, Level 3's AgentManager uses FunctionAgent/
+# ReActAgent from llama_index.core.agent -- the modern agent-workflow API,
+# which does not exist in the 0.12/0.13 range. Enforcing the blueprint's
+# stated constraint would break the already-verified Level 3/4 behavior,
+# so this file pins to the version everything was actually tested against
+# instead. Flagging this mismatch rather than silently picking a side.
+llama-index-core==0.14.23

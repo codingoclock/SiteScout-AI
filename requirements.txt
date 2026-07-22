@@ -4,6 +4,16 @@ llama-index-llms-openai==0.7.9
 llama-index-embeddings-openai==0.6.0
 llama-index-vector-stores-chroma==0.5.5
 chromadb==1.5.9
+# STORE_TYPE=redis/mongodb need a running server -- NOT bundled with this
+# app. Tested live (create_index -> load_index -> query, real two-process
+# round trip, same pattern as the disk backend) against plain Docker
+# containers: `docker run -p 6379:6379 -d redis:7` and
+# `docker run -p 27017:27017 -d mongo:7`. No auth, no persistent volume --
+# spin up, point STORE_HOST/STORE_PORT at them, tear down when done. If
+# this hasn't been re-tested in a while and you're touching storage.py or
+# index.py's Redis/MongoIndex classes, re-run that round trip before
+# trusting it -- otherwise it silently regresses back to "registration
+# tested only, never actually queried."
 redis==5.3.1
 llama-index-storage-docstore-redis==0.5.0
 llama-index-storage-index-store-redis==0.6.0
@@ -16,3 +26,14 @@ llama-index-storage-index-store-mongodb==0.6.0
 # local Ollama-backed verification used for index.py's live query tests.
 llama-index-llms-ollama==0.10.1
 llama-index-embeddings-ollama==0.9.0
+
+# Level 5 -- agent/crawler/*. Independent of the chat/RAG stack above.
+# After installing, also run `crawl4ai-setup` once to fetch Playwright's
+# browser binaries (not a pip dependency, a separate download step).
+crawl4ai==0.9.2
+
+# Cross-encoder reranker (agent/chat/manager.py) -- runs fully locally via
+# sentence-transformers/torch, no cloud API. torch installs as a dependency
+# of sentence-transformers; not pinned here since it just needs to be
+# whatever version sentence-transformers resolves.
+sentence-transformers==5.6.0
