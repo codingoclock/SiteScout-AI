@@ -1,11 +1,12 @@
 # SiteScout AI
 
-A local-first RAG (Retrieval-Augmented Generation) system: crawl a web
-page, index its content, and ask questions about it through an LLM-backed
-agent that retrieves grounded context before answering. Built to run
-entirely on local models (Ollama), with no cloud API key or network
-dependency required at query time -- an OpenAI-backed path also exists in
-the code as a configuration option.
+A local-first **Agentic RAG** (Retrieval-Augmented Generation) system:
+crawl a web page, index its content, and ask questions about it through an
+LLM-driven agent that *decides* whether and when to retrieve grounded
+context before answering, rather than retrieving on every question as a
+fixed pipeline step. Built to run entirely on local models (Ollama), with
+no cloud API key or network dependency required at query time -- an
+OpenAI-backed path also exists in the code as a configuration option.
 
 ## Architecture
 
@@ -15,10 +16,40 @@ The pipeline is a straight line, each stage owned by one module:
 crawl (agent/crawler/)
   -> parse & chunk (agent/chat/parsing.py)
   -> embed & store (agent/chat/storage.py, index.py)
-  -> retrieve (similarity search, wide candidate pool)
+  -> retrieve (hybrid: vector similarity + BM25, fused via RRF)
   -> rerank (cross-encoder, narrows to top-k)
   -> generate (LLM agent, tool-calling)
 ```
+
+### Why this is Agentic RAG, specifically
+
+The retrieve/rerank stages above aren't wired in as a fixed step that runs
+on every question. They're wrapped into a single `QueryEngineTool`
+(`knowledge_base`), handed to an LLM agent (`ReActAgent`, or `FunctionAgent`
+for the OpenAI path) that decides, per question, whether to call it --
+the same pattern used by tool-calling agent frameworks generally, applied
+here with exactly one tool. That's the actual distinction between plain
+RAG and Agentic RAG: retrieval as a tool an agent chooses to invoke, versus
+retrieval as an unconditional pipeline stage.
+
+This was verified empirically, not just designed this way in theory:
+testing the same 5 questions against the same index showed tool-invocation
+rates that varied by agent/prompt configuration (as low as 1/5, as high as
+5/5) -- that variation only exists because the model is genuinely
+*deciding* whether to retrieve, not executing a hardcoded step. Verbose
+runs also showed genuine multi-step ReAct loops (Thought -> Action ->
+Observation -> Thought -> Answer), sometimes 2-3 sequential LLM calls for
+a single question, rather than one fixed retrieve-then-generate pass.
+
+Scope, precisely -- what this is *not*: a single-tool agent (one
+`knowledge_base` tool, not several capabilities to choose between), no
+multi-agent orchestration or agent-to-agent handoff, no agentic query
+decomposition (`QueryFusionRetriever` supports LLM-generated query
+rewrites, but `num_queries` is deliberately set to `1` to avoid an extra
+LLM round trip per query), and no verified conversational memory across
+separate questions in a session (the CLI reuses the same agent setup
+across queries for performance, but each query is still an independent
+`agent.run()` call).
 
 ### Crawling (`agent/crawler/`)
 - `url_manager.py` -- URL normalization (resolves relative links, strips
@@ -52,11 +83,14 @@ crawl (agent/crawler/)
   `OPENAI_API_KEY`) or `MODEL_TYPE=open_source` (local Ollama LLM +
   HuggingFace embeddings).
 - `manager.py` -- `AgentManager`/`RAGAgent`: wraps the index in a
-  `QueryEngineTool`, retrieves a wide candidate pool (`CANDIDATE_POOL_SIZE
-  = 10`) via similarity search, reranks it down to `RERANK_TOP_K = 3` with
-  a local cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`, via
-  `sentence-transformers`, no cloud call) before handing it to the agent.
-  Picks `FunctionAgent` for `MODEL_TYPE=openai` or `ReActAgent` otherwise.
+  `QueryEngineTool`. Retrieval is hybrid -- a vector similarity search and
+  a BM25 keyword search each independently produce a candidate pool
+  (`CANDIDATE_POOL_SIZE = 10`), fused into one ranked list via Reciprocal
+  Rank Fusion (`QueryFusionRetriever`). That fused pool is then reranked
+  down to `RERANK_TOP_K = 3` with a local cross-encoder
+  (`cross-encoder/ms-marco-MiniLM-L-6-v2`, via `sentence-transformers`, no
+  cloud call) before handing it to the agent. Picks `FunctionAgent` for
+  `MODEL_TYPE=openai` or `ReActAgent` otherwise.
 
 ### Entry point (`run_agent.py`)
 - Guards on Python 3.10/3.11 (llama-index has a known incompatibility on
@@ -84,16 +118,26 @@ crawl (agent/crawler/)
   All four share one constructor contract, so the same `run_agent.py`
   flow works unmodified regardless of which one is active.
 
-- **Reranking retrieval pipeline for higher-precision answers.** A plain
-  vector similarity search casts a wide net (10 candidate chunks), then a
-  local cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) re-scores
-  and narrows that pool down to the 3 chunks that are actually most
-  relevant to the question -- catching genuinely relevant chunks that
-  embedding similarity alone tends to under-rank. This also shrinks the
-  context the LLM has to read: instead of reasoning over the full
-  unranked pool of 10, it only processes the top 3, which reduces
-  generation time per query even though the reranking step itself adds a
-  small, fixed cost.
+- **Hybrid search (vector + BM25) for better recall.** Retrieval doesn't
+  rely on embedding similarity alone -- a BM25 keyword search runs
+  alongside it, and the two candidate pools are combined with Reciprocal
+  Rank Fusion (RRF), the standard technique for merging lexical and
+  semantic search results. This catches cases pure vector search misses:
+  an exact term, command, or name in the question that's a strong keyword
+  match but not a strong semantic one. Verified directly, not assumed --
+  on a real test page, a chunk containing the exact command `bundle exec`
+  was ranked last (4th of 4) by vector similarity alone, and rose to 2nd
+  once BM25 was fused in.
+
+- **Reranking retrieval pipeline for higher-precision answers.** After
+  hybrid retrieval casts its wide net (10 candidate chunks), a local
+  cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) re-scores and
+  narrows that pool down to the 3 chunks that are actually most relevant
+  to the question -- catching genuinely relevant chunks that similarity
+  scores alone tend to under-rank. This also shrinks the context the LLM
+  has to read: instead of reasoning over the full unranked pool of 10, it
+  only processes the top 3, which reduces generation time per query even
+  though the reranking step itself adds a small, fixed cost.
 
 - **Web crawler that behaves.** Respects `robots.txt` and sitemaps
   (including nested sitemap indexes, not just flat lists), filters out
